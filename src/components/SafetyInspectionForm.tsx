@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -57,6 +57,12 @@ const workReportSchema = z.object({
 type WorkReportFormData = z.infer<typeof workReportSchema>;
 
 export const SafetyInspectionForm = () => {
+  const [obras, setObras] = useState<string[]>([]);
+  const [showObrasSuggestions, setShowObrasSuggestions] = useState(false);
+  const [isSearchingObras, setIsSearchingObras] = useState(false);
+  const searchTimeoutRef = useRef<NodeJS.Timeout>();
+  const obraInputRef = useRef<HTMLDivElement>(null);
+
   // Hook de firma manual
   const {
     signatureRef,
@@ -83,6 +89,63 @@ export const SafetyInspectionForm = () => {
       materialEmpleado: '',
     },
   });
+
+  // Buscar obras en el webhook
+  const searchObras = async (query: string) => {
+    if (query.length < 2) {
+      setObras([]);
+      setShowObrasSuggestions(false);
+      return;
+    }
+
+    setIsSearchingObras(true);
+    try {
+      const response = await fetch(
+        `https://n8n.n8n.instalia.synology.me/webhook/Obras_Ingeman?busqueda=${encodeURIComponent(query)}`
+      );
+      const data = await response.json();
+      
+      // Asumiendo que la respuesta es un array de objetos con nombre de obra
+      // Ajustar según la estructura real de la respuesta
+      const obrasList = Array.isArray(data) 
+        ? data.map((item: any) => typeof item === 'string' ? item : item.nombre || item.obra || '')
+        : [];
+      
+      setObras(obrasList);
+      setShowObrasSuggestions(obrasList.length > 0);
+    } catch (error) {
+      console.error('Error buscando obras:', error);
+      setObras([]);
+      setShowObrasSuggestions(false);
+    } finally {
+      setIsSearchingObras(false);
+    }
+  };
+
+  // Debounce para la búsqueda
+  const handleObraInputChange = (value: string, onChange: (value: string) => void) => {
+    onChange(value);
+    
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    searchTimeoutRef.current = setTimeout(() => {
+      searchObras(value);
+    }, 300);
+  };
+
+  // Cerrar sugerencias al hacer clic fuera
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (obraInputRef.current && !obraInputRef.current.contains(event.target as Node)) {
+        setShowObrasSuggestions(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const onSubmit = (data: WorkReportFormData) => {
     // Validar firma
@@ -143,7 +206,40 @@ export const SafetyInspectionForm = () => {
                     <FormItem>
                       <FormLabel>Obra</FormLabel>
                       <FormControl>
-                        <Input placeholder="Nombre de la obra" {...field} />
+                        <div ref={obraInputRef} className="relative">
+                          <Input
+                            placeholder="Nombre de la obra"
+                            value={field.value}
+                            onChange={(e) => handleObraInputChange(e.target.value, field.onChange)}
+                            onFocus={() => {
+                              if (obras.length > 0) {
+                                setShowObrasSuggestions(true);
+                              }
+                            }}
+                          />
+                          {showObrasSuggestions && obras.length > 0 && (
+                            <div className="absolute z-50 w-full mt-1 bg-card border border-border rounded-md shadow-lg max-h-60 overflow-auto">
+                              {obras.map((obra, index) => (
+                                <button
+                                  key={index}
+                                  type="button"
+                                  className="w-full px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground transition-colors"
+                                  onClick={() => {
+                                    field.onChange(obra);
+                                    setShowObrasSuggestions(false);
+                                  }}
+                                >
+                                  {obra}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                          {isSearchingObras && (
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                              <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full" />
+                            </div>
+                          )}
+                        </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
