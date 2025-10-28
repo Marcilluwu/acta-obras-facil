@@ -19,11 +19,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/nueva-obra" element={<NewWorkValidation />} />
-          <Route path="/obra-existente" element={<ExistingWorkSelection />} />
-          <Route path="/inspecciones-previas" element={<PreviousInspections />} />
-          <Route path="/formulario" element={<SafetyInspectionForm />} />
+          <Route path="/" element={<SafetyInspectionForm />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
