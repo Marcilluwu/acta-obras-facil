@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -10,8 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { CalendarIcon, Upload, Save, Pen } from 'lucide-react';
+import { CalendarIcon, Save } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -58,10 +57,6 @@ const workReportSchema = z.object({
 type WorkReportFormData = z.infer<typeof workReportSchema>;
 
 export const SafetyInspectionForm = () => {
-  const [signatureType, setSignatureType] = useState<'manual' | 'digital'>('manual');
-  const [digitalSignature, setDigitalSignature] = useState<string>('');
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
   // Hook de firma manual
   const {
     signatureRef,
@@ -89,31 +84,9 @@ export const SafetyInspectionForm = () => {
     },
   });
 
-  const handleDigitalSignatureUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file && file.type.startsWith('image/')) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const result = e.target?.result as string;
-        setDigitalSignature(result);
-        toast({
-          title: 'Firma cargada',
-          description: 'La firma digital se ha cargado correctamente.',
-        });
-      };
-      reader.readAsDataURL(file);
-    } else {
-      toast({
-        title: 'Error',
-        description: 'Por favor, selecciona una imagen válida.',
-        variant: 'destructive',
-      });
-    }
-  };
-
   const onSubmit = (data: WorkReportFormData) => {
     // Validar firma
-    if (signatureType === 'manual' && !isSignatureSaved) {
+    if (!isSignatureSaved) {
       toast({
         title: 'Firma requerida',
         description: 'Por favor, dibuja y guarda tu firma antes de continuar.',
@@ -122,19 +95,9 @@ export const SafetyInspectionForm = () => {
       return;
     }
 
-    if (signatureType === 'digital' && !digitalSignature) {
-      toast({
-        title: 'Firma requerida',
-        description: 'Por favor, carga una firma digital antes de continuar.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
     const reportData = {
       ...data,
-      firma: signatureType === 'manual' ? signatureData : digitalSignature,
-      tipoFirma: signatureType,
+      firma: signatureData,
     };
 
     console.log('Datos del parte:', reportData);
@@ -349,89 +312,39 @@ export const SafetyInspectionForm = () => {
                 {/* Firma */}
                 <div className="space-y-4">
                   <Label className="text-lg font-semibold">Firma</Label>
-                  <Tabs value={signatureType} onValueChange={(value) => setSignatureType(value as 'manual' | 'digital')}>
-                    <TabsList className="grid w-full grid-cols-2">
-                      <TabsTrigger value="manual">
-                        <Pen className="w-4 h-4 mr-2" />
-                        Firma Manual
-                      </TabsTrigger>
-                      <TabsTrigger value="digital">
-                        <Upload className="w-4 h-4 mr-2" />
-                        Firma Digital
-                      </TabsTrigger>
-                    </TabsList>
-
-                    {/* Firma Manual */}
-                    <TabsContent value="manual" className="space-y-4">
-                      <div className="border-2 border-border rounded-lg p-4 bg-card">
-                        <div className="border border-border rounded-md bg-background">
-                          <SignatureCanvas
-                            ref={signatureRef}
-                            canvasProps={{
-                              className: 'w-full h-48 touch-none',
-                            }}
-                            backgroundColor="white"
-                          />
-                        </div>
-                        <div className="flex gap-2 mt-4">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={clearSignature}
-                            className="flex-1"
-                          >
-                            Limpiar
-                          </Button>
-                          <Button
-                            type="button"
-                            onClick={saveSignature}
-                            className="flex-1"
-                          >
-                            Guardar Firma
-                          </Button>
-                        </div>
-                        {isSignatureSaved && (
-                          <p className="text-sm text-green-600 mt-2 text-center">
-                            ✓ Firma guardada correctamente
-                          </p>
-                        )}
-                      </div>
-                    </TabsContent>
-
-                    {/* Firma Digital */}
-                    <TabsContent value="digital" className="space-y-4">
-                      <div className="border-2 border-border rounded-lg p-4 bg-card">
-                        <input
-                          ref={fileInputRef}
-                          type="file"
-                          accept="image/*"
-                          onChange={handleDigitalSignatureUpload}
-                          className="hidden"
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => fileInputRef.current?.click()}
-                          className="w-full"
-                        >
-                          <Upload className="w-4 h-4 mr-2" />
-                          Cargar firma desde archivo
-                        </Button>
-                        {digitalSignature && (
-                          <div className="mt-4">
-                            <img
-                              src={digitalSignature}
-                              alt="Firma digital"
-                              className="max-h-32 mx-auto border border-border rounded"
-                            />
-                            <p className="text-sm text-green-600 mt-2 text-center">
-                              ✓ Firma cargada correctamente
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </TabsContent>
-                  </Tabs>
+                  <div className="border-2 border-border rounded-lg p-4 bg-card">
+                    <div className="border border-border rounded-md bg-background">
+                      <SignatureCanvas
+                        ref={signatureRef}
+                        canvasProps={{
+                          className: 'w-full h-48 touch-none',
+                        }}
+                        backgroundColor="white"
+                      />
+                    </div>
+                    <div className="flex gap-2 mt-4">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={clearSignature}
+                        className="flex-1"
+                      >
+                        Limpiar
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={saveSignature}
+                        className="flex-1"
+                      >
+                        Guardar Firma
+                      </Button>
+                    </div>
+                    {isSignatureSaved && (
+                      <p className="text-sm text-green-600 mt-2 text-center">
+                        ✓ Firma guardada correctamente
+                      </p>
+                    )}
+                  </div>
                 </div>
 
                 {/* Botón de guardar */}
