@@ -101,7 +101,12 @@ export const SafetyInspectionForm = () => {
     setIsSearchingObras(true);
     try {
       const response = await fetch(
-        `https://n8n.n8n.instalia.synology.me/webhook/Obras_Ingeman?busqueda=${encodeURIComponent(query)}`
+        `https://n8n.n8n.instalia.synology.me/webhook/Obras_Ingeman?busqueda=${encodeURIComponent(query)}`,
+        {
+          headers: {
+            'psswd': '73862137816273861283dhvhfgdvgf27384rtfgcuyefgc7ewufgqwsdafsdf'
+          }
+        }
       );
       const data = await response.json();
       
