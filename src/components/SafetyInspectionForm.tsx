@@ -105,16 +105,37 @@ export const SafetyInspectionForm = () => {
       );
       const data = await response.json();
       
-      // Asumiendo que la respuesta es un array de objetos con nombre de obra
-      // Ajustar según la estructura real de la respuesta
-      const obrasList = Array.isArray(data) 
-        ? data.map((item: any) => typeof item === 'string' ? item : item.nombre || item.obra || '')
-        : [];
+      console.log('Respuesta del webhook:', data);
+      
+      // Manejar diferentes tipos de respuesta
+      let obrasList: string[] = [];
+      
+      if (Array.isArray(data)) {
+        obrasList = data.map((item: any) => 
+          typeof item === 'string' ? item : item.nombre || item.obra || item.toString()
+        );
+      } else if (typeof data === 'object' && data !== null) {
+        // Si es un objeto, intentar extraer un array
+        const possibleArrays = Object.values(data).filter(Array.isArray);
+        if (possibleArrays.length > 0) {
+          obrasList = possibleArrays[0].map((item: any) => 
+            typeof item === 'string' ? item : item.nombre || item.obra || item.toString()
+          );
+        }
+      } else if (typeof data === 'string') {
+        // Si es un string simple, usarlo como resultado único
+        obrasList = [data];
+      }
       
       setObras(obrasList);
-      setShowObrasSuggestions(obrasList.length > 0);
+      setShowObrasSuggestions(true);
     } catch (error) {
       console.error('Error buscando obras:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudieron cargar las obras',
+        variant: 'destructive',
+      });
       setObras([]);
       setShowObrasSuggestions(false);
     } finally {
@@ -208,7 +229,7 @@ export const SafetyInspectionForm = () => {
                       <FormControl>
                         <div ref={obraInputRef} className="relative">
                           <Input
-                            placeholder="Nombre de la obra"
+                            placeholder="Escribe para buscar obra..."
                             value={field.value}
                             onChange={(e) => handleObraInputChange(e.target.value, field.onChange)}
                             onFocus={() => {
@@ -217,26 +238,29 @@ export const SafetyInspectionForm = () => {
                               }
                             }}
                           />
+                          {isSearchingObras && (
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                              <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full" />
+                            </div>
+                          )}
                           {showObrasSuggestions && obras.length > 0 && (
-                            <div className="absolute z-50 w-full mt-1 bg-card border border-border rounded-md shadow-lg max-h-60 overflow-auto">
+                            <div className="absolute z-[100] w-full mt-2 bg-popover border-2 border-border rounded-lg shadow-xl max-h-64 overflow-y-auto">
+                              <div className="p-2 text-xs text-muted-foreground border-b border-border">
+                                {obras.length} resultado{obras.length !== 1 ? 's' : ''} encontrado{obras.length !== 1 ? 's' : ''}
+                              </div>
                               {obras.map((obra, index) => (
                                 <button
                                   key={index}
                                   type="button"
-                                  className="w-full px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground transition-colors"
+                                  className="w-full px-4 py-3 text-left hover:bg-accent focus:bg-accent transition-colors border-b border-border last:border-b-0"
                                   onClick={() => {
                                     field.onChange(obra);
                                     setShowObrasSuggestions(false);
                                   }}
                                 >
-                                  {obra}
+                                  <div className="font-medium">{obra}</div>
                                 </button>
                               ))}
-                            </div>
-                          )}
-                          {isSearchingObras && (
-                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                              <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full" />
                             </div>
                           )}
                         </div>
