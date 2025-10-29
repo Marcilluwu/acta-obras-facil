@@ -64,6 +64,7 @@ export const SafetyInspectionForm = () => {
   const obraInputRef = useRef<HTMLDivElement>(null);
   
   const [operarios, setOperarios] = useState<string[]>([]);
+  const [allOperarios, setAllOperarios] = useState<string[]>([]);
   const [showOperariosSuggestions, setShowOperariosSuggestions] = useState(false);
   const [isSearchingOperarios, setIsSearchingOperarios] = useState(false);
   const searchOperariosTimeoutRef = useRef<NodeJS.Timeout>();
@@ -98,7 +99,7 @@ export const SafetyInspectionForm = () => {
     },
   });
 
-  // Cargar logo al montar el componente
+  // Cargar logo y operarios al montar el componente
   useEffect(() => {
     const loadLogo = async () => {
       try {
@@ -119,7 +120,50 @@ export const SafetyInspectionForm = () => {
       }
     };
     
+    const loadOperarios = async () => {
+      try {
+        const response = await fetch(
+          'https://n8n.n8n.instalia.synology.me/webhook/Operarios_Ingeman',
+          {
+            headers: {
+              'psswd': '73862137816273861283dhvhfgdvgf27384rtfgcuyefgc7ewufgqwsdafsdf'
+            }
+          }
+        );
+        const data = await response.json();
+        
+        console.log('Lista completa de operarios:', data);
+        
+        let operariosList: string[] = [];
+        
+        if (Array.isArray(data)) {
+          operariosList = data.map((item: any) => 
+            typeof item === 'string' ? item : item.nombre || item.operario || item.toString()
+          );
+        } else if (typeof data === 'object' && data !== null) {
+          const possibleArrays = Object.values(data).filter(Array.isArray);
+          if (possibleArrays.length > 0) {
+            operariosList = possibleArrays[0].map((item: any) => 
+              typeof item === 'string' ? item : item.nombre || item.operario || item.toString()
+            );
+          }
+        } else if (typeof data === 'string') {
+          operariosList = [data];
+        }
+        
+        setAllOperarios(operariosList);
+      } catch (error) {
+        console.error('Error cargando operarios:', error);
+        toast({
+          title: 'Error',
+          description: 'No se pudieron cargar los operarios',
+          variant: 'destructive',
+        });
+      }
+    };
+    
     loadLogo();
+    loadOperarios();
   }, []);
 
   // Buscar obras en el webhook
@@ -177,64 +221,20 @@ export const SafetyInspectionForm = () => {
     }
   };
 
-  // Buscar operarios en el webhook
-  const searchOperarios = async (query: string) => {
+  // Filtrar operarios localmente
+  const filterOperarios = (query: string) => {
     if (query.length < 2) {
       setOperarios([]);
       setShowOperariosSuggestions(false);
       return;
     }
 
-    setIsSearchingOperarios(true);
-    try {
-      const response = await fetch(
-        'https://n8n.n8n.instalia.synology.me/webhook/Operarios_Ingeman',
-        {
-          headers: {
-            'psswd': '73862137816273861283dhvhfgdvgf27384rtfgcuyefgc7ewufgqwsdafsdf'
-          }
-        }
-      );
-      const data = await response.json();
-      
-      console.log('Respuesta del webhook operarios:', data);
-      
-      let operariosList: string[] = [];
-      
-      if (Array.isArray(data)) {
-        operariosList = data.map((item: any) => 
-          typeof item === 'string' ? item : item.nombre || item.operario || item.toString()
-        );
-      } else if (typeof data === 'object' && data !== null) {
-        const possibleArrays = Object.values(data).filter(Array.isArray);
-        if (possibleArrays.length > 0) {
-          operariosList = possibleArrays[0].map((item: any) => 
-            typeof item === 'string' ? item : item.nombre || item.operario || item.toString()
-          );
-        }
-      } else if (typeof data === 'string') {
-        operariosList = [data];
-      }
-      
-      // Filtrar por el query localmente
-      const filtered = operariosList.filter(op => 
-        op.toLowerCase().includes(query.toLowerCase())
-      );
-      
-      setOperarios(filtered);
-      setShowOperariosSuggestions(true);
-    } catch (error) {
-      console.error('Error buscando operarios:', error);
-      toast({
-        title: 'Error',
-        description: 'No se pudieron cargar los operarios',
-        variant: 'destructive',
-      });
-      setOperarios([]);
-      setShowOperariosSuggestions(false);
-    } finally {
-      setIsSearchingOperarios(false);
-    }
+    const filtered = allOperarios.filter(op => 
+      op.toLowerCase().includes(query.toLowerCase())
+    );
+    
+    setOperarios(filtered);
+    setShowOperariosSuggestions(true);
   };
 
   // Debounce para la búsqueda de obras
@@ -259,7 +259,7 @@ export const SafetyInspectionForm = () => {
     }
 
     searchOperariosTimeoutRef.current = setTimeout(() => {
-      searchOperarios(value);
+      filterOperarios(value);
     }, 300);
   };
 
@@ -308,8 +308,8 @@ export const SafetyInspectionForm = () => {
         <Card className="shadow-lg">
           <CardHeader>
             {logoUrl && (
-              <div className="flex justify-center mb-4">
-                <img src={logoUrl} alt="Logo" className="h-16 object-contain" />
+              <div className="flex justify-center mb-6">
+                <img src={logoUrl} alt="Logo de la empresa" className="h-32 object-contain" />
               </div>
             )}
             <CardTitle className="text-3xl font-bold text-center">
