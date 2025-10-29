@@ -66,7 +66,6 @@ export const SafetyInspectionForm = () => {
   const [operarios, setOperarios] = useState<string[]>([]);
   const [allOperarios, setAllOperarios] = useState<string[]>([]);
   const [showOperariosSuggestions, setShowOperariosSuggestions] = useState(false);
-  const [isSearchingOperarios, setIsSearchingOperarios] = useState(false);
   const searchOperariosTimeoutRef = useRef<NodeJS.Timeout>();
   const operarioInputRef = useRef<HTMLDivElement>(null);
   
@@ -338,11 +337,6 @@ export const SafetyInspectionForm = () => {
                               }
                             }}
                           />
-                          {isSearchingOperarios && (
-                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                              <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full" />
-                            </div>
-                          )}
                           {showOperariosSuggestions && operarios.length > 0 && (
                             <div className="absolute z-[100] w-full mt-2 bg-popover border-2 border-border rounded-lg shadow-xl max-h-64 overflow-y-auto">
                               <div className="p-2 text-xs text-muted-foreground border-b border-border">
