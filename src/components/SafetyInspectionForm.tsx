@@ -64,10 +64,6 @@ export const SafetyInspectionForm = () => {
   const obraInputRef = useRef<HTMLDivElement>(null);
   
   const [operarios, setOperarios] = useState<string[]>([]);
-  const [allOperarios, setAllOperarios] = useState<string[]>([]);
-  const [showOperariosSuggestions, setShowOperariosSuggestions] = useState(false);
-  const searchOperariosTimeoutRef = useRef<NodeJS.Timeout>();
-  const operarioInputRef = useRef<HTMLDivElement>(null);
   
   const [logoUrl, setLogoUrl] = useState<string>('');
 
@@ -150,7 +146,7 @@ export const SafetyInspectionForm = () => {
           operariosList = [data];
         }
         
-        setAllOperarios(operariosList);
+        setOperarios(operariosList);
       } catch (error) {
         console.error('Error cargando operarios:', error);
         toast({
@@ -220,21 +216,6 @@ export const SafetyInspectionForm = () => {
     }
   };
 
-  // Filtrar operarios localmente
-  const filterOperarios = (query: string) => {
-    if (query.length < 2) {
-      setOperarios([]);
-      setShowOperariosSuggestions(false);
-      return;
-    }
-
-    const filtered = allOperarios.filter(op => 
-      op.toLowerCase().includes(query.toLowerCase())
-    );
-    
-    setOperarios(filtered);
-    setShowOperariosSuggestions(true);
-  };
 
   // Debounce para la búsqueda de obras
   const handleObraInputChange = (value: string, onChange: (value: string) => void) => {
@@ -249,27 +230,12 @@ export const SafetyInspectionForm = () => {
     }, 300);
   };
 
-  // Debounce para la búsqueda de operarios
-  const handleOperarioInputChange = (value: string, onChange: (value: string) => void) => {
-    onChange(value);
-    
-    if (searchOperariosTimeoutRef.current) {
-      clearTimeout(searchOperariosTimeoutRef.current);
-    }
-
-    searchOperariosTimeoutRef.current = setTimeout(() => {
-      filterOperarios(value);
-    }, 300);
-  };
 
   // Cerrar sugerencias al hacer clic fuera
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (obraInputRef.current && !obraInputRef.current.contains(event.target as Node)) {
         setShowObrasSuggestions(false);
-      }
-      if (operarioInputRef.current && !operarioInputRef.current.contains(event.target as Node)) {
-        setShowOperariosSuggestions(false);
       }
     };
 
@@ -325,40 +291,20 @@ export const SafetyInspectionForm = () => {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Operario</FormLabel>
-                      <FormControl>
-                        <div ref={operarioInputRef} className="relative">
-                          <Input
-                            placeholder="Escribe para buscar operario..."
-                            value={field.value}
-                            onChange={(e) => handleOperarioInputChange(e.target.value, field.onChange)}
-                            onFocus={() => {
-                              if (operarios.length > 0) {
-                                setShowOperariosSuggestions(true);
-                              }
-                            }}
-                          />
-                          {showOperariosSuggestions && operarios.length > 0 && (
-                            <div className="absolute z-[100] w-full mt-2 bg-popover border-2 border-border rounded-lg shadow-xl max-h-64 overflow-y-auto">
-                              <div className="p-2 text-xs text-muted-foreground border-b border-border">
-                                {operarios.length} resultado{operarios.length !== 1 ? 's' : ''} encontrado{operarios.length !== 1 ? 's' : ''}
-                              </div>
-                              {operarios.map((operario, index) => (
-                                <button
-                                  key={index}
-                                  type="button"
-                                  className="w-full px-4 py-3 text-left hover:bg-accent focus:bg-accent transition-colors border-b border-border last:border-b-0"
-                                  onClick={() => {
-                                    field.onChange(operario);
-                                    setShowOperariosSuggestions(false);
-                                  }}
-                                >
-                                  <div className="font-medium">{operario}</div>
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </FormControl>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecciona un operario" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent className="max-h-[300px]">
+                          {operarios.map((operario, index) => (
+                            <SelectItem key={index} value={operario}>
+                              {operario}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
