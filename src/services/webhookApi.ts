@@ -34,14 +34,20 @@ export class WebhookApi {
   static async uploadDocument(options: UploadDocumentOptions): Promise<boolean> {
     const { file, filename, projectName, type, metadata = {} } = options;
 
+    console.log('📤 uploadDocument llamado:', { filename, type, size: file.size });
+
     if (!this.hasWebhook()) {
-      console.warn('No hay webhook configurado, saltando envío');
+      console.warn('⚠️ No hay webhook configurado, saltando envío');
       return false;
     }
 
+    console.log('🌐 Webhook URL:', this.webhookUrl);
+
     try {
       // Convertir blob a base64
+      console.log('🔄 Convirtiendo archivo a base64...');
       const base64 = await this.blobToBase64(file);
+      console.log('✅ Base64 generado, longitud:', base64.length);
 
       // Preparar datos para enviar
       const payload = {
@@ -54,15 +60,25 @@ export class WebhookApi {
         ...metadata
       };
 
+      console.log('📦 Payload preparado:', {
+        filename: payload.filename,
+        projectName: payload.projectName,
+        type: payload.type,
+        size: payload.size,
+        dataLength: payload.data.length
+      });
+
       // Verificar conexión real
       const isOnline = navigator.onLine && await this.checkConnection();
+      console.log('🌐 Estado de conexión:', { navigatorOnline: navigator.onLine, checkPassed: isOnline });
 
       if (!isOnline) {
+        console.warn('📴 Sin conexión, encolando documento');
         // Sin conexión: guardar en cola offline
         return await this.queueForOfflineSync(payload, filename);
       }
 
-      console.log(`Enviando ${type.toUpperCase()} a webhook:`, filename);
+      console.log(`📤 Enviando ${type.toUpperCase()} a webhook:`, filename);
 
       const response = await fetch(this.webhookUrl, {
         method: 'POST',
@@ -72,24 +88,31 @@ export class WebhookApi {
         body: JSON.stringify(payload),
       });
 
+      console.log('📨 Respuesta del servidor:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      });
+
       const respText = await response.clone().text().catch(() => '');
+      console.log('📄 Texto de respuesta:', respText);
 
       if (response.ok) {
-        console.log(`${type.toUpperCase()} enviado exitosamente:`, filename, '→ Respuesta:', respText);
+        console.log(`✅ ${type.toUpperCase()} enviado exitosamente:`, filename);
         
         toast({
           title: '✅ Documento enviado',
-          description: `${filename} subido correctamente. Servidor: ${respText || 'OK'}`,
+          description: `${filename} subido correctamente.`,
         });
         
         return true;
       } else {
-        console.error(`Error al enviar ${type}:`, response.status, response.statusText, '→ Respuesta:', respText);
+        console.error(`❌ Error al enviar ${type}:`, response.status, response.statusText);
         // Error al enviar: guardar en cola offline
         return await this.queueForOfflineSync(payload, filename);
       }
     } catch (error) {
-      console.error(`Error al enviar documento a webhook:`, error);
+      console.error(`❌ Error al enviar documento a webhook:`, error);
       
       // Error: guardar en cola offline para reintento
       const base64 = await this.blobToBase64(file);

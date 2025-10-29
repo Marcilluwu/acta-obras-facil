@@ -256,6 +256,8 @@ export const SafetyInspectionForm = () => {
     }
 
     try {
+      console.log('🚀 Iniciando generación de documentos...');
+      
       toast({
         title: 'Generando documentos...',
         description: 'Creando PDF y DOCX del parte de trabajo',
@@ -266,9 +268,18 @@ export const SafetyInspectionForm = () => {
       const month = String(data.fecha.getMonth() + 1).padStart(2, '0');
       const day = String(data.fecha.getDate()).padStart(2, '0');
       const baseFilename = `${year}${month}${day}_${data.numeroOrden} ${data.obra}.Parte`;
+      
+      console.log('📄 Nombre de archivo:', baseFilename);
 
       // Generar PDF y DOCX
       const { generateParteDocuments } = await import('@/utils/parteGenerator');
+      
+      console.log('⚙️ Generando documentos con datos:', {
+        operario: data.operario,
+        obra: data.obra,
+        numeroOrden: data.numeroOrden
+      });
+      
       const result = await generateParteDocuments({
         operario: data.operario,
         obra: data.obra,
@@ -285,13 +296,18 @@ export const SafetyInspectionForm = () => {
         baseFilename
       });
 
+      console.log('✅ Resultado de generación:', result);
+
       if (result.success) {
+        console.log('📤 Iniciando envío al webhook...');
+        
         // Enviar documentos al webhook
         const { WebhookApi } = await import('@/services/webhookApi');
         
         const uploadPromises = [];
         
         if (result.pdfBlob) {
+          console.log('📄 Enviando PDF:', `${baseFilename}.pdf`, 'Tamaño:', result.pdfBlob.size, 'bytes');
           uploadPromises.push(
             WebhookApi.uploadDocument({
               file: result.pdfBlob,
@@ -303,6 +319,7 @@ export const SafetyInspectionForm = () => {
         }
         
         if (result.docxBlob) {
+          console.log('📄 Enviando DOCX:', `${baseFilename}.docx`, 'Tamaño:', result.docxBlob.size, 'bytes');
           uploadPromises.push(
             WebhookApi.uploadDocument({
               file: result.docxBlob,
@@ -313,7 +330,8 @@ export const SafetyInspectionForm = () => {
           );
         }
 
-        await Promise.all(uploadPromises);
+        const results = await Promise.all(uploadPromises);
+        console.log('✅ Resultados de envío:', results);
 
         toast({
           title: 'Parte guardado',
@@ -323,12 +341,15 @@ export const SafetyInspectionForm = () => {
         // Limpiar formulario
         form.reset();
         clearSignature();
+      } else {
+        console.error('❌ Error en generación:', result.error);
+        throw new Error(result.error || 'Error desconocido en la generación');
       }
     } catch (error) {
-      console.error('Error generando documentos:', error);
+      console.error('❌ Error completo:', error);
       toast({
         title: 'Error',
-        description: 'No se pudieron generar los documentos',
+        description: error instanceof Error ? error.message : 'No se pudieron generar los documentos',
         variant: 'destructive',
       });
     }
