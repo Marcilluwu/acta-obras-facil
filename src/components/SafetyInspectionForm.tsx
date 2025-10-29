@@ -106,10 +106,9 @@ export const SafetyInspectionForm = () => {
             }
           }
         );
-        const data = await response.json();
-        if (data.logo || data.url || typeof data === 'string') {
-          setLogoUrl(data.logo || data.url || data);
-        }
+        const blob = await response.blob();
+        const imageUrl = URL.createObjectURL(blob);
+        setLogoUrl(imageUrl);
       } catch (error) {
         console.error('Error cargando logo:', error);
       }
