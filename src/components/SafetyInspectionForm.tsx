@@ -62,6 +62,14 @@ export const SafetyInspectionForm = () => {
   const [isSearchingObras, setIsSearchingObras] = useState(false);
   const searchTimeoutRef = useRef<NodeJS.Timeout>();
   const obraInputRef = useRef<HTMLDivElement>(null);
+  
+  const [operarios, setOperarios] = useState<string[]>([]);
+  const [showOperariosSuggestions, setShowOperariosSuggestions] = useState(false);
+  const [isSearchingOperarios, setIsSearchingOperarios] = useState(false);
+  const searchOperariosTimeoutRef = useRef<NodeJS.Timeout>();
+  const operarioInputRef = useRef<HTMLDivElement>(null);
+  
+  const [logoUrl, setLogoUrl] = useState<string>('');
 
   // Hook de firma manual
   const {
@@ -90,6 +98,30 @@ export const SafetyInspectionForm = () => {
     },
   });
 
+  // Cargar logo al montar el componente
+  useEffect(() => {
+    const loadLogo = async () => {
+      try {
+        const response = await fetch(
+          'https://n8n.n8n.instalia.synology.me/webhook/logo_ingeman',
+          {
+            headers: {
+              'psswd': '73862137816273861283dhvhfgdvgf27384rtfgcuyefgc7ewufgqwsdafsdf'
+            }
+          }
+        );
+        const data = await response.json();
+        if (data.logo || data.url || typeof data === 'string') {
+          setLogoUrl(data.logo || data.url || data);
+        }
+      } catch (error) {
+        console.error('Error cargando logo:', error);
+      }
+    };
+    
+    loadLogo();
+  }, []);
+
   // Buscar obras en el webhook
   const searchObras = async (query: string) => {
     if (query.length < 2) {
@@ -110,9 +142,8 @@ export const SafetyInspectionForm = () => {
       );
       const data = await response.json();
       
-      console.log('Respuesta del webhook:', data);
+      console.log('Respuesta del webhook obras:', data);
       
-      // Manejar diferentes tipos de respuesta
       let obrasList: string[] = [];
       
       if (Array.isArray(data)) {
@@ -120,7 +151,6 @@ export const SafetyInspectionForm = () => {
           typeof item === 'string' ? item : item.nombre || item.obra || item.toString()
         );
       } else if (typeof data === 'object' && data !== null) {
-        // Si es un objeto, intentar extraer un array
         const possibleArrays = Object.values(data).filter(Array.isArray);
         if (possibleArrays.length > 0) {
           obrasList = possibleArrays[0].map((item: any) => 
@@ -128,7 +158,6 @@ export const SafetyInspectionForm = () => {
           );
         }
       } else if (typeof data === 'string') {
-        // Si es un string simple, usarlo como resultado único
         obrasList = [data];
       }
       
@@ -148,7 +177,67 @@ export const SafetyInspectionForm = () => {
     }
   };
 
-  // Debounce para la búsqueda
+  // Buscar operarios en el webhook
+  const searchOperarios = async (query: string) => {
+    if (query.length < 2) {
+      setOperarios([]);
+      setShowOperariosSuggestions(false);
+      return;
+    }
+
+    setIsSearchingOperarios(true);
+    try {
+      const response = await fetch(
+        'https://n8n.n8n.instalia.synology.me/webhook/Operarios_Ingeman',
+        {
+          headers: {
+            'psswd': '73862137816273861283dhvhfgdvgf27384rtfgcuyefgc7ewufgqwsdafsdf'
+          }
+        }
+      );
+      const data = await response.json();
+      
+      console.log('Respuesta del webhook operarios:', data);
+      
+      let operariosList: string[] = [];
+      
+      if (Array.isArray(data)) {
+        operariosList = data.map((item: any) => 
+          typeof item === 'string' ? item : item.nombre || item.operario || item.toString()
+        );
+      } else if (typeof data === 'object' && data !== null) {
+        const possibleArrays = Object.values(data).filter(Array.isArray);
+        if (possibleArrays.length > 0) {
+          operariosList = possibleArrays[0].map((item: any) => 
+            typeof item === 'string' ? item : item.nombre || item.operario || item.toString()
+          );
+        }
+      } else if (typeof data === 'string') {
+        operariosList = [data];
+      }
+      
+      // Filtrar por el query localmente
+      const filtered = operariosList.filter(op => 
+        op.toLowerCase().includes(query.toLowerCase())
+      );
+      
+      setOperarios(filtered);
+      setShowOperariosSuggestions(true);
+    } catch (error) {
+      console.error('Error buscando operarios:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudieron cargar los operarios',
+        variant: 'destructive',
+      });
+      setOperarios([]);
+      setShowOperariosSuggestions(false);
+    } finally {
+      setIsSearchingOperarios(false);
+    }
+  };
+
+  // Debounce para la búsqueda de obras
   const handleObraInputChange = (value: string, onChange: (value: string) => void) => {
     onChange(value);
     
@@ -161,11 +250,27 @@ export const SafetyInspectionForm = () => {
     }, 300);
   };
 
+  // Debounce para la búsqueda de operarios
+  const handleOperarioInputChange = (value: string, onChange: (value: string) => void) => {
+    onChange(value);
+    
+    if (searchOperariosTimeoutRef.current) {
+      clearTimeout(searchOperariosTimeoutRef.current);
+    }
+
+    searchOperariosTimeoutRef.current = setTimeout(() => {
+      searchOperarios(value);
+    }, 300);
+  };
+
   // Cerrar sugerencias al hacer clic fuera
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (obraInputRef.current && !obraInputRef.current.contains(event.target as Node)) {
         setShowObrasSuggestions(false);
+      }
+      if (operarioInputRef.current && !operarioInputRef.current.contains(event.target as Node)) {
+        setShowOperariosSuggestions(false);
       }
     };
 
@@ -202,6 +307,11 @@ export const SafetyInspectionForm = () => {
       <div className="max-w-4xl mx-auto">
         <Card className="shadow-lg">
           <CardHeader>
+            {logoUrl && (
+              <div className="flex justify-center mb-4">
+                <img src={logoUrl} alt="Logo" className="h-16 object-contain" />
+              </div>
+            )}
             <CardTitle className="text-3xl font-bold text-center">
               Parte de Trabajo
             </CardTitle>
@@ -217,7 +327,43 @@ export const SafetyInspectionForm = () => {
                     <FormItem>
                       <FormLabel>Operario</FormLabel>
                       <FormControl>
-                        <Input placeholder="Nombre del operario" {...field} />
+                        <div ref={operarioInputRef} className="relative">
+                          <Input
+                            placeholder="Escribe para buscar operario..."
+                            value={field.value}
+                            onChange={(e) => handleOperarioInputChange(e.target.value, field.onChange)}
+                            onFocus={() => {
+                              if (operarios.length > 0) {
+                                setShowOperariosSuggestions(true);
+                              }
+                            }}
+                          />
+                          {isSearchingOperarios && (
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                              <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full" />
+                            </div>
+                          )}
+                          {showOperariosSuggestions && operarios.length > 0 && (
+                            <div className="absolute z-[100] w-full mt-2 bg-popover border-2 border-border rounded-lg shadow-xl max-h-64 overflow-y-auto">
+                              <div className="p-2 text-xs text-muted-foreground border-b border-border">
+                                {operarios.length} resultado{operarios.length !== 1 ? 's' : ''} encontrado{operarios.length !== 1 ? 's' : ''}
+                              </div>
+                              {operarios.map((operario, index) => (
+                                <button
+                                  key={index}
+                                  type="button"
+                                  className="w-full px-4 py-3 text-left hover:bg-accent focus:bg-accent transition-colors border-b border-border last:border-b-0"
+                                  onClick={() => {
+                                    field.onChange(operario);
+                                    setShowOperariosSuggestions(false);
+                                  }}
+                                >
+                                  <div className="font-medium">{operario}</div>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
