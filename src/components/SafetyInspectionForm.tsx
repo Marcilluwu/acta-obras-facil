@@ -270,13 +270,13 @@ export const SafetyInspectionForm = () => {
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="max-w-4xl mx-auto">
+        {logoUrl && (
+          <div className="flex justify-center mb-6">
+            <img src={logoUrl} alt="Logo de la empresa" className="h-32 object-contain" />
+          </div>
+        )}
         <Card className="shadow-lg">
           <CardHeader>
-            {logoUrl && (
-              <div className="flex justify-center mb-6">
-                <img src={logoUrl} alt="Logo de la empresa" className="h-32 object-contain" />
-              </div>
-            )}
             <CardTitle className="text-3xl font-bold text-center">
               Parte de Trabajo
             </CardTitle>
