@@ -51,7 +51,7 @@ const workReportSchema = z.object({
   numeroOrden: z.string().min(1, 'El número de orden es requerido'),
   trabajoRealizado: z.string().min(1, 'El trabajo realizado es requerido'),
   vehiculo: z.string().min(1, 'El vehículo es requerido'),
-  materialEmpleado: z.string().min(1, 'El material empleado es requerido'),
+  materialEmpleado: z.string().optional(),
   notas: z.string().optional(),
 });
 
@@ -574,7 +574,7 @@ export const SafetyInspectionForm = () => {
                   name="materialEmpleado"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Material empleado</FormLabel>
+                      <FormLabel>Material empleado (opcional)</FormLabel>
                       <FormControl>
                         <Textarea
                           placeholder="Describe el material empleado..."

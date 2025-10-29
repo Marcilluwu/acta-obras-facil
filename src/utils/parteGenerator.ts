@@ -12,7 +12,7 @@ interface ParteData {
   numeroOrden: string;
   trabajoRealizado: string;
   vehiculo: string;
-  materialEmpleado: string;
+  materialEmpleado?: string;
   notas?: string;
   firma: string;
   logoUrl?: string;
@@ -104,14 +104,16 @@ async function generatePartePDF(data: ParteData): Promise<Blob> {
   pdf.text(trabajoLines, 20, yPosition);
   yPosition += trabajoLines.length * 5 + 5;
 
-  // Material empleado
-  pdf.setFont('helvetica', 'bold');
-  pdf.text('Material empleado:', 20, yPosition);
-  yPosition += 6;
-  pdf.setFont('helvetica', 'normal');
-  const materialLines = pdf.splitTextToSize(data.materialEmpleado, 170);
-  pdf.text(materialLines, 20, yPosition);
-  yPosition += materialLines.length * 5 + 5;
+  // Material empleado (si existe)
+  if (data.materialEmpleado && data.materialEmpleado.trim()) {
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('Material empleado:', 20, yPosition);
+    yPosition += 6;
+    pdf.setFont('helvetica', 'normal');
+    const materialLines = pdf.splitTextToSize(data.materialEmpleado, 170);
+    pdf.text(materialLines, 20, yPosition);
+    yPosition += materialLines.length * 5 + 5;
+  }
 
   // Notas (si existen)
   if (data.notas && data.notas.trim()) {
@@ -217,21 +219,23 @@ async function generateParteDocx(data: ParteData): Promise<Blob> {
     })
   );
 
-  // Material empleado
-  children.push(
-    new Paragraph({
-      children: [
-        new TextRun({ text: 'Material empleado:', bold: true, size: 22 })
-      ],
-      spacing: { after: 150 }
-    }),
-    new Paragraph({
-      children: [
-        new TextRun({ text: data.materialEmpleado, size: 22 })
-      ],
-      spacing: { after: 300 }
-    })
-  );
+  // Material empleado (si existe)
+  if (data.materialEmpleado && data.materialEmpleado.trim()) {
+    children.push(
+      new Paragraph({
+        children: [
+          new TextRun({ text: 'Material empleado:', bold: true, size: 22 })
+        ],
+        spacing: { after: 150 }
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({ text: data.materialEmpleado, size: 22 })
+        ],
+        spacing: { after: 300 }
+      })
+    );
+  }
 
   // Notas (si existen)
   if (data.notas && data.notas.trim()) {
