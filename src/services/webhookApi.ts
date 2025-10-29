@@ -12,7 +12,7 @@ interface UploadDocumentOptions {
 }
 
 export class WebhookApi {
-  private static webhookUrl: string = 'https://n8n.n8n.instalia.synology.me/webhook/Carga_Paperless';
+  private static webhookUrl: string = 'https://n8n.n8n.instalia.synology.me/webhook-test/Carga_Partes';
 
   // Configurar URL del webhook
   static setWebhookUrl(url: string): void {

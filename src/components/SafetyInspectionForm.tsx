@@ -52,6 +52,7 @@ const workReportSchema = z.object({
   trabajoRealizado: z.string().min(1, 'El trabajo realizado es requerido'),
   vehiculo: z.string().min(1, 'El vehículo es requerido'),
   materialEmpleado: z.string().min(1, 'El material empleado es requerido'),
+  notas: z.string().optional(),
 });
 
 type WorkReportFormData = z.infer<typeof workReportSchema>;
@@ -91,6 +92,7 @@ export const SafetyInspectionForm = () => {
       trabajoRealizado: '',
       vehiculo: '',
       materialEmpleado: '',
+      notas: '',
     },
   });
 
@@ -242,7 +244,7 @@ export const SafetyInspectionForm = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const onSubmit = (data: WorkReportFormData) => {
+  const onSubmit = async (data: WorkReportFormData) => {
     // Validar firma
     if (!isSignatureSaved) {
       toast({
@@ -253,17 +255,83 @@ export const SafetyInspectionForm = () => {
       return;
     }
 
-    const reportData = {
-      ...data,
-      firma: signatureData,
-    };
+    try {
+      toast({
+        title: 'Generando documentos...',
+        description: 'Creando PDF y DOCX del parte de trabajo',
+      });
 
-    console.log('Datos del parte:', reportData);
+      // Generar nombre de archivo con formato: YYMMdd_NºOrden Nombre Obra.Parte
+      const year = data.fecha.getFullYear().toString().slice(-2);
+      const month = String(data.fecha.getMonth() + 1).padStart(2, '0');
+      const day = String(data.fecha.getDate()).padStart(2, '0');
+      const baseFilename = `${year}${month}${day}_${data.numeroOrden} ${data.obra}.Parte`;
 
-    toast({
-      title: 'Parte guardado',
-      description: 'El parte de trabajo se ha guardado correctamente.',
-    });
+      // Generar PDF y DOCX
+      const { generateParteDocuments } = await import('@/utils/parteGenerator');
+      const result = await generateParteDocuments({
+        operario: data.operario,
+        obra: data.obra,
+        fecha: data.fecha,
+        horas: data.horas,
+        tipoTrabajo: data.tipoTrabajo,
+        numeroOrden: data.numeroOrden,
+        trabajoRealizado: data.trabajoRealizado,
+        vehiculo: data.vehiculo,
+        materialEmpleado: data.materialEmpleado,
+        notas: data.notas,
+        firma: signatureData!,
+        logoUrl,
+        baseFilename
+      });
+
+      if (result.success) {
+        // Enviar documentos al webhook
+        const { WebhookApi } = await import('@/services/webhookApi');
+        
+        const uploadPromises = [];
+        
+        if (result.pdfBlob) {
+          uploadPromises.push(
+            WebhookApi.uploadDocument({
+              file: result.pdfBlob,
+              filename: `${baseFilename}.pdf`,
+              projectName: data.obra,
+              type: 'pdf'
+            })
+          );
+        }
+        
+        if (result.docxBlob) {
+          uploadPromises.push(
+            WebhookApi.uploadDocument({
+              file: result.docxBlob,
+              filename: `${baseFilename}.docx`,
+              projectName: data.obra,
+              type: 'docx'
+            })
+          );
+        }
+
+        await Promise.all(uploadPromises);
+
+        toast({
+          title: 'Parte guardado',
+          description: 'Los documentos se han generado y enviado correctamente.',
+        });
+
+        // Limpiar formulario
+        form.reset();
+        clearSignature();
+      }
+    } catch (error) {
+      console.error('Error generando documentos:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudieron generar los documentos',
+        variant: 'destructive',
+      });
+    }
   };
 
   return (
@@ -510,6 +578,25 @@ export const SafetyInspectionForm = () => {
                       <FormControl>
                         <Textarea
                           placeholder="Describe el material empleado..."
+                          className="min-h-[120px]"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Notas */}
+                <FormField
+                  control={form.control}
+                  name="notas"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Notas adicionales (opcional)</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Añade notas adicionales sobre el trabajo..."
                           className="min-h-[120px]"
                           {...field}
                         />
